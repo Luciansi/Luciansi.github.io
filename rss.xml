@@ -1,0 +1,741 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Lumen</title><description>Blog &amp; Knowledge Base</description><link>http://localhost:4321/</link><language>en</language><item><title>Knowledge Graph</title><link>http://localhost:4321/showcase/knowledge-graph/</link><guid isPermaLink="true">http://localhost:4321/showcase/knowledge-graph/</guid><description>How notes connect — which links become edges, node identity, hub exclusion, local versus global view, and how the whole graph is built.</description><pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Every wikilink, transclusion and internal markdown link is also an &lt;strong&gt;edge&lt;/strong&gt; in the knowledge graph. The engine runs its own extraction pass over the content (same pipeline semantics as rendering) and publishes the result as &lt;code&gt;/linkgraph.json&lt;/code&gt; — one entry per page, with resolved link targets and tags. The graph card on a note&apos;s right rail reads that endpoint, so what you see always matches what the pages actually link to.&lt;/p&gt;
+&lt;h2&gt;What becomes a node&lt;/h2&gt;
+&lt;p&gt;A node is a &lt;strong&gt;page that can be reached through content&lt;/strong&gt;: vault notes (dated notes double as articles) and standalone pages. Three deliberate exceptions keep the graph meaningful:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;index.md&lt;/code&gt; pages — every directory hub and the site-level config file at the content root — are excluded entirely. They never appear as nodes, and links pointing at them are dropped, so the graph shows genuine note-to-note connections instead of a star around each hub.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;draft: true&lt;/code&gt; notes have no page outside development, so the &lt;strong&gt;production graph omits them&lt;/strong&gt; while the dev graph keeps them (their pages exist there) — the same liveness rule the pages follow.&lt;/li&gt;
+&lt;li&gt;Tag nodes are optional pseudo-nodes, toggled by &lt;code&gt;graph.showTags&lt;/code&gt; in site-configuration — handy for spotting themes that span vaults. Clicking one jumps to the archive filtered by that tag.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Where edges come from&lt;/h2&gt;
+&lt;p&gt;The extraction pass parses every note with the same remark/hast chain as rendering, then records each link that resolves to a page in the site manifest (&lt;code&gt;src/integrations/quartz-pipeline/manifest.ts&lt;/code&gt;):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Obsidian-style &lt;code&gt;wikilinks&lt;/code&gt;, embeds &lt;code&gt;…&lt;/code&gt; and markdown links to other notes;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;aliases&lt;/code&gt; frontmatter — a note becomes linkable under its alias names, and links written that way count as edges to the same node;&lt;/li&gt;
+&lt;li&gt;frontmatter-declared links, when present.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;permalink&lt;/code&gt; frontmatter pins a note&apos;s URL but deliberately adds no edge — those links resolve to a fixed address without a canonical note slug. Unresolvable targets are dropped (and marked &lt;code&gt;broken&lt;/code&gt; on the page itself), so the graph never contains dead ends you can&apos;t navigate to.&lt;/p&gt;
+&lt;h2&gt;Reading the graph&lt;/h2&gt;
+&lt;p&gt;On any note page, the right rail shows the &lt;strong&gt;local graph&lt;/strong&gt;: the current note plus its neighborhood, found by breadth-first search and capped by &lt;code&gt;graph.localDepth&lt;/code&gt; (1–3). The center note is highlighted; hovering a node focuses its neighbors, dragging moves the canvas, scrolling zooms.&lt;/p&gt;
+&lt;p&gt;Press &lt;code&gt;Ctrl&lt;/code&gt;/&lt;code&gt;Cmd&lt;/code&gt; + &lt;code&gt;G&lt;/code&gt; (or the expand icon) for the &lt;strong&gt;global graph&lt;/strong&gt; — every node of the site on one canvas. The same interactions apply, and clicking a node navigates to its page. Esc or clicking the backdrop closes it. Visited notes are remembered in &lt;code&gt;localStorage&lt;/code&gt; and tinted differently, so you can see where you have and haven&apos;t been.&lt;/p&gt;
+&lt;h2&gt;Tuning the graph&lt;/h2&gt;
+&lt;p&gt;All switches live in &lt;code&gt;src/content/index.md&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;graph.enable&lt;/code&gt; turns the whole feature off (card and keyboard shortcut);&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;graph.localDepth&lt;/code&gt; sets how many hops the local neighborhood reaches;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;graph.showTags&lt;/code&gt; adds the tag pseudo-nodes.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Layout parameters — forces, link distances, label size, colors — are carried in the graph card&apos;s &lt;code&gt;data-cfg&lt;/code&gt; attribute and rendered from the site&apos;s CSS variables, a shell adapted from the quartz graph view; tinker with the &lt;code&gt;--graph-*&lt;/code&gt; tokens in &lt;code&gt;src/styles/&lt;/code&gt; for a different look.&lt;/p&gt;
+&lt;h2&gt;How it stays consistent&lt;/h2&gt;
+&lt;p&gt;The data source is an endpoint (&lt;code&gt;src/pages/linkgraph.json.ts&lt;/code&gt;) that runs its own extraction pass instead of depending on page render order — Astro builds pages concurrently, so a page-driven index would be racy. Extraction results are cached per file by mtime (1-second TTL in dev), so editing a note only re-parses that file and the neighborhood updates as you work. See knowledge-vaults for how folders become vaults, or quartz-features for the pipeline behind the pages.&lt;/p&gt;
+</content:encoded></item><item><title>Knowledge Vaults</title><link>http://localhost:4321/showcase/knowledge-vaults/</link><guid isPermaLink="true">http://localhost:4321/showcase/knowledge-vaults/</guid><description>A vault is a top-level folder under src/content — it becomes a route, a nav entry, a collection and part of the graph, with zero configuration.</description><pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;A &lt;strong&gt;vault&lt;/strong&gt; is simply a top-level directory under &lt;code&gt;src/content/&lt;/code&gt; — like this one. Nothing needs to be registered: each vault automatically becomes&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;a &lt;strong&gt;content collection&lt;/strong&gt; with an open schema (any Obsidian frontmatter is kept),&lt;/li&gt;
+&lt;li&gt;a &lt;strong&gt;route&lt;/strong&gt; (&lt;code&gt;/&amp;lt;name&amp;gt;/&lt;/code&gt; for the hub page, &lt;code&gt;/&amp;lt;name&amp;gt;/&amp;lt;note&amp;gt;/&lt;/code&gt; for notes),&lt;/li&gt;
+&lt;li&gt;a &lt;strong&gt;navbar entry&lt;/strong&gt; linking to its hub, and&lt;/li&gt;
+&lt;li&gt;a set of &lt;strong&gt;nodes in the knowledge graph&lt;/strong&gt; (see knowledge-graph).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Nothing is reserved: any top-level directory becomes a vault. Only genuine code-driven page routes (like &lt;code&gt;archive&lt;/code&gt;) can&apos;t double as a vault name. Standalone pages such as &lt;code&gt;/about/&lt;/code&gt; are ordinary vault root notes (&lt;code&gt;about/index.md&lt;/code&gt;).&lt;/p&gt;
+&lt;h2&gt;Anatomy of a vault&lt;/h2&gt;
+&lt;p&gt;A vault usually starts with an &lt;code&gt;index.md&lt;/code&gt; — the note served at &lt;code&gt;/&amp;lt;vault&amp;gt;/&lt;/code&gt;. Everything between the two markers below is maintained by &lt;code&gt;pnpm index-vaults&lt;/code&gt;, which lists the vault&apos;s notes so the hub stays current as you add files:&lt;/p&gt;
+&lt;p&gt;&amp;lt;!-- auto-index:start --&amp;gt;&lt;/p&gt;
+&lt;p&gt;&amp;lt;!-- auto-index:end --&amp;gt;&lt;/p&gt;
+&lt;p&gt;Prose outside the markers is yours and survives regeneration untouched.&lt;/p&gt;
+&lt;h2&gt;Working with vaults&lt;/h2&gt;
+&lt;p&gt;The scaffold scripts cover the common moves:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Command&lt;/th&gt;
+&lt;th&gt;Effect&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;mkdir src/content/&amp;lt;name&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;create a vault — a folder is a vault, auto-registered&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm new-note &amp;lt;vault&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;walk the note wizard inside an existing vault&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm index-vaults&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;refresh every vault hub&apos;s auto-index (runs automatically on &lt;code&gt;predev&lt;/code&gt;/&lt;code&gt;prebuild&lt;/code&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Newly created &lt;strong&gt;folders&lt;/strong&gt; need a dev-server restart to be discovered; notes inside an existing vault appear immediately. Deleting a vault directory removes its routes, nav entry and graph nodes in one move.&lt;/p&gt;
+&lt;h2&gt;A vault you can open in Obsidian&lt;/h2&gt;
+&lt;p&gt;The content folders are ordinary markdown — point Obsidian at &lt;code&gt;src/content/showcase/&lt;/code&gt; (or the whole &lt;code&gt;src/content/&lt;/code&gt;) and the same files you browse here are your local notes. Wiki links, callouts and tags behave identically on both sides, which is what makes the site feel like an extension of your vault rather than a copy of it.&lt;/p&gt;
+&lt;p&gt;See also: writing-content for the syntax notes use, site-configuration for how nav and graph behavior is tuned, and publishing-workflow for the build pipeline.&lt;/p&gt;
+</content:encoded></item><item><title>Publishing Workflow</title><link>http://localhost:4321/showcase/publishing-workflow/</link><guid isPermaLink="true">http://localhost:4321/showcase/publishing-workflow/</guid><description>Drafts, scaffolding scripts, search indexing and static deployment — how a saved note becomes a published page.</description><pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Writing and shipping notes here follows a small, script-backed workflow.&lt;/p&gt;
+&lt;h2&gt;Writing&lt;/h2&gt;
+&lt;p&gt;Notes with &lt;code&gt;draft: true&lt;/code&gt; behave like blog-post drafts: visible in dev, silently absent from production builds (no page, no archive entry, no search hit). Everything else — dated or not — is immediately live at its &lt;code&gt;/&amp;lt;vault&amp;gt;/&amp;lt;name&amp;gt;/&lt;/code&gt; route, and dated notes (a &lt;code&gt;published&lt;/code&gt; key) also surface in the homepage overview and the archive.&lt;/p&gt;
+&lt;p&gt;Scaffolding comes in two flavors:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Command&lt;/th&gt;
+&lt;th&gt;Use&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm new-note &amp;lt;vault&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;a knowledge note inside an existing vault&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;mkdir src/content/&amp;lt;name&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;a brand-new vault (directory = vault, auto-registered)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2&gt;Building&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;pnpm build&lt;/code&gt; runs the Astro static build &lt;strong&gt;and&lt;/strong&gt; the Pagefind search index (&lt;code&gt;pagefind.yml&lt;/code&gt; excludes noise such as KaTeX output and panels). The pipeline is fully static:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;vault hubs are refreshed (&lt;code&gt;prebuild&lt;/code&gt; hook),&lt;/li&gt;
+&lt;li&gt;Astro renders every page — notes, vault hubs, &lt;code&gt;/about/&lt;/code&gt;, &lt;code&gt;/linkgraph.json&lt;/code&gt;, &lt;code&gt;/rss.xml&lt;/code&gt;, &lt;code&gt;/sitemap-index.xml&lt;/code&gt;, &lt;code&gt;/robots.txt&lt;/code&gt;,&lt;/li&gt;
+&lt;li&gt;Pagefind indexes &lt;code&gt;dist/&lt;/code&gt; for the client-side search panel.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The result is a pure-static &lt;code&gt;dist/&lt;/code&gt; with no server runtime — deployable to Vercel, Netlify, Cloudflare Pages or a plain nginx folder. A sub-path install only needs &lt;code&gt;astro.config.mjs&lt;/code&gt;&apos;s &lt;code&gt;base&lt;/code&gt;; internal links pick it up automatically.&lt;/p&gt;
+&lt;h2&gt;Browsing the result&lt;/h2&gt;
+&lt;p&gt;Page transitions run through swup (a single morphing container), so long-form notes and the drawer-style layouts swap seamlessly. Client conveniences — theme and hue picker (stored in &lt;code&gt;localStorage&lt;/code&gt;), code copy buttons, collapsible callouts, Mermaid fullscreen, the graph — reinitialize idempotently on every page change.&lt;/p&gt;
+&lt;p&gt;Put together with writing-content for the syntax, site-configuration for the switches, and knowledge-vaults for how folders become sites.&lt;/p&gt;
+</content:encoded></item><item><title>Site Configuration</title><link>http://localhost:4321/showcase/site-configuration/</link><guid isPermaLink="true">http://localhost:4321/showcase/site-configuration/</guid><description>One YAML file configures the whole site — titles, theme, banner, navigation, license, profile and UI copy — and saves hot.</description><pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Lumen concentrates &lt;strong&gt;all site configuration in a single file&lt;/strong&gt;: &lt;code&gt;src/content/index.md&lt;/code&gt;. Its frontmatter is plain YAML, every group is commented in place, and a save takes effect on the next request — no dev-server restart needed.&lt;/p&gt;
+&lt;h2&gt;What you can configure&lt;/h2&gt;
+&lt;p&gt;The file is organized into groups that mirror what you see on the page:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Group&lt;/th&gt;
+&lt;th&gt;Controls&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;site&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;browser title, subtitle, UI language&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;themeColor&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;accent hue (&lt;code&gt;0–360&lt;/code&gt;) and whether visitors may pick their own&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;banner&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the hero banner image, position and credit&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;toc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;right-rail table of contents: on/off and depth&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;graph&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;knowledge graph: on/off, local depth, tag nodes&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;favicon&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;light/dark favicon entries (&lt;code&gt;[]&lt;/code&gt; falls back to the built-ins)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;nav&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;navbar links — presets (&lt;code&gt;home&lt;/code&gt;/&lt;code&gt;archive&lt;/code&gt;/&lt;code&gt;about&lt;/code&gt;) that translate themselves, custom entries, and where vault links are inserted&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;license&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the license card shown under articles (dated notes)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;profile&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;name, tagline, avatar and social links for the hero card&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ui&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;optional UI copy overrides (defaults follow the language)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Two further lists live in the &lt;strong&gt;body&lt;/strong&gt; of the same file rather than YAML: the &lt;code&gt;# Recommended&lt;/code&gt; section that feeds the recommendation card, and the &lt;code&gt;# Posts Overview&lt;/code&gt; ordering list — each line a plain &lt;code&gt;- [Title](/route/)&lt;/code&gt; entry.&lt;/p&gt;
+&lt;h2&gt;Saving is applying&lt;/h2&gt;
+&lt;p&gt;Because the config file is re-read per request (and cached by content), editing &lt;code&gt;index.md&lt;/code&gt; while the dev server runs updates titles, the banner, &lt;code&gt;lang&lt;/code&gt;, nav links and everything else without a restart. Try it: change &lt;code&gt;site.title&lt;/code&gt;, save, and refresh.&lt;/p&gt;
+&lt;p&gt;The same file doubles as the language switch: &lt;code&gt;site.lang&lt;/code&gt; drives every server-rendered label (the navbar presets, archive text, hero statistics), with &lt;code&gt;zh_CN&lt;/code&gt;/&lt;code&gt;zh_TW&lt;/code&gt; getting Chinese defaults and other languages English ones — customize any string under the optional &lt;code&gt;ui:&lt;/code&gt; block.&lt;/p&gt;
+&lt;h2&gt;What stays in code&lt;/h2&gt;
+&lt;p&gt;Two deliberately code-side areas remain: the markdown pipeline settings in &lt;code&gt;src/integrations/quartz-pipeline/config.ts&lt;/code&gt; and &lt;code&gt;astro.config.mjs&lt;/code&gt; (&lt;code&gt;site&lt;/code&gt; URL, integrations, &lt;code&gt;base&lt;/code&gt; for sub-path deploys). Changing those still requires a restart.&lt;/p&gt;
+&lt;p&gt;Interested in how the notes themselves become pages and nav entries? See knowledge-vaults, or knowledge-graph for what happens to all those links.&lt;/p&gt;
+</content:encoded></item><item><title>Writing Content</title><link>http://localhost:4321/showcase/writing-content/</link><guid isPermaLink="true">http://localhost:4321/showcase/writing-content/</guid><description>The markdown feature set — wikilinks, transclusion, callouts, math, diagrams and more.</description><pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;All content — every vault note, dated or not — runs through the same quartz markdown pipeline, so the syntax below works identically everywhere.&lt;/p&gt;
+&lt;h2&gt;Links, wikilinks and transclusion&lt;/h2&gt;
+&lt;p&gt;Plain URLs autolink, but the native way to move around is the Obsidian-style wikilink. A wikilink resolves by file name across the &lt;strong&gt;whole&lt;/strong&gt; site, so notes in different vaults can point at each other:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;knowledge-vaults&lt;/code&gt; → a note in this vault&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;Code Styler&lt;/code&gt; → a note in another vault, linked with a custom label&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;jump to a section&lt;/code&gt; → a heading inside another note&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;quartz-target&lt;/code&gt; → transclude (embed) an entire page&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;quartz-target&lt;/code&gt; → embed one heading&apos;s content&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;300|right&lt;/code&gt; → embed an image with size and alignment&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Broken targets are caught at build time, so a renamed note surfaces as a warning instead of a silent dead link.&lt;/p&gt;
+&lt;h2&gt;Callouts, highlights and tasks&lt;/h2&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[!TIP]+ Notes from the road
+Callouts come in the Obsidian flavors — &lt;code&gt;note&lt;/code&gt;, &lt;code&gt;warning&lt;/code&gt;, &lt;code&gt;tip&lt;/code&gt;, &lt;code&gt;example&lt;/code&gt;, &lt;code&gt;important&lt;/code&gt; and friends. A &lt;code&gt;+&lt;/code&gt; shows them expanded by default, &lt;code&gt;-&lt;/code&gt; collapses them.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Inline decoration follows OFM too: ==this text is highlighted==, and &lt;code&gt;%%this is a comment%%&lt;/code&gt; never renders. Checklists work as plain markdown tasks:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] a task to do&lt;/li&gt;
+&lt;li&gt;[x] a task that is done&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Math and diagrams&lt;/h2&gt;
+&lt;p&gt;Inline math &lt;code&gt;$E = mc^2$&lt;/code&gt; and display math are rendered with KaTeX:&lt;/p&gt;
+&lt;p&gt;$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$&lt;/p&gt;
+&lt;p&gt;Mermaid diagrams render from a fenced block and open fullscreen on double click:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;flowchart LR
+    Write --&amp;gt; Render
+    Render --&amp;gt; Read
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Code&lt;/h2&gt;
+&lt;p&gt;Fenced code blocks get language badges, optional line numbers, range and named highlights, and a copy button — all from the Code Styler pipeline:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;function greet(name: string): string {
+  return `Hello, ${name}!`;
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Frontmatter&lt;/h2&gt;
+&lt;p&gt;Vault notes keep an open schema — any Obsidian key is preserved. Keys the engine reads: &lt;code&gt;title&lt;/code&gt;, &lt;code&gt;published&lt;/code&gt; (a dated note becomes an article: homepage overview, archive, RSS), &lt;code&gt;description&lt;/code&gt;, &lt;code&gt;tags&lt;/code&gt;, &lt;code&gt;draft: true&lt;/code&gt; (dev-only preview, stripped from production builds), plus &lt;code&gt;aliases&lt;/code&gt; and &lt;code&gt;permalink&lt;/code&gt; for link resolution.&lt;/p&gt;
+&lt;p&gt;See also how the surrounding site is tuned in site-configuration.&lt;/p&gt;
+</content:encoded></item><item><title>Code Styler Demo</title><link>http://localhost:4321/showcase/code-styler/</link><guid isPermaLink="true">http://localhost:4321/showcase/code-styler/</guid><description>Demo of the ported Code-Styler parameter syntax — header/fold, line-number highlighting, inline {lang}, comment links, and reference embeds.</description><pubDate>Sun, 06 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;This post demonstrates how the code-block dialect ported from the Obsidian &lt;strong&gt;Code Styler&lt;/strong&gt; plugin renders on this blog. All parameters are written on the opening fence line, right after the language name, where &lt;code&gt;:&lt;/code&gt; and &lt;code&gt;=&lt;/code&gt; are equivalent.&lt;/p&gt;
+&lt;h2&gt;Header / fold&lt;/h2&gt;
+&lt;p&gt;Header + collapsed by default (the &lt;code&gt;fold&lt;/code&gt; parameter; the default collapse label comes from the &lt;code&gt;fold:&lt;/code&gt; placeholder):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;int binary_search(int* a, int n, int key) {
+    int lo = 0, hi = n - 1;
+    while (lo &amp;lt;= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] &amp;lt; key) lo = mid + 1;
+        else if (a[mid] &amp;gt; key) hi = mid - 1;
+        else return mid;
+    }
+    return -1;
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;No title, with a custom collapse label (&lt;code&gt;fold:&quot;Collapsed section&quot;&lt;/code&gt;); click the header to expand/collapse:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def parse(stream):
+    &quot;&quot;&quot;Demo of a plain fold with a custom placeholder.&quot;&quot;&quot;
+    for line in stream:
+        if line.startswith(&quot;#&quot;):
+            yield line[1:].strip()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Titles as links (&lt;code&gt;ref:Features&lt;/code&gt; and an external &lt;code&gt;title:[astro](https://astro.build)&lt;/code&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;export const kind = &quot;note&quot;;
+export const nested = { count: 2 };
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;print(&quot;external link in the header title&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The language tag and icon are &lt;strong&gt;always shown&lt;/strong&gt; by default (config &lt;code&gt;header.showLanguageTag/showLanguageIcon: &quot;always&quot;&lt;/code&gt;); every decorated block has a header, and clicking it toggles fold/unfold (same as the plugin). Switching to &lt;code&gt;&quot;ifHeader&quot;&lt;/code&gt; shows them only when a title/fold is present.&lt;/p&gt;
+&lt;h2&gt;Line numbers and highlighting&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;ln:N&lt;/code&gt; offsets the line numbers (numbering starts at N):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def read_file(path):
+    with open(path) as fh:
+        return fh.read()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;hl:&lt;/code&gt; highlighting supports combinations of line numbers / ranges / words / regular expressions (comma-separated, no spaces). Note that, like &lt;code&gt;ln:&lt;/code&gt;, &lt;code&gt;hl&lt;/code&gt; line numbers are counted &lt;strong&gt;against the displayed line numbers&lt;/strong&gt;: there is no offset below, so &lt;code&gt;hl:1,3-4&lt;/code&gt; means lines 1 and 3-4, plus the lines matched by the word &lt;code&gt;def&lt;/code&gt; and the regex &lt;code&gt;/read/&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def read_file(path):
+    with open(path) as fh:
+        return fh.read()
+
+def main():
+    data = read_file(&quot;input.txt&quot;)
+    for line in data.splitlines():
+        print(line)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Combined with &lt;code&gt;ln:20&lt;/code&gt;, highlighting the four lines starting at source line 1 means writing &lt;code&gt;hl:20,23-25&lt;/code&gt; (the corresponding displayed line numbers). The RPC/Expressive-Code-compatible form &lt;code&gt;{1,3-4}&lt;/code&gt; is equivalent:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;one = 1
+two = 2
+three = 3
+four = 4
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Named alt highlighting: configuration names (&lt;code&gt;ins&lt;/code&gt;/&lt;code&gt;del&lt;/code&gt;/&lt;code&gt;warn&lt;/code&gt;/&lt;code&gt;err&lt;/code&gt;) act as the parameter keys, with the same syntax as &lt;code&gt;hl&lt;/code&gt; but independent colors. Multiple alt classes can stack on the same line (when both match, the color follows whichever declaration comes later in the CSS):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;const warn1 = compute(alpha, beta);   // warning colour row
+const ok = compute(gamma, delta);
+const warn2 = compute(epsilon, zeta); // warning colour row
+const fine = compute(eta, theta);
+const warn3 = compute(iota, kappa);   // warning colour row
+const bad = explode();                // error colour row
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Wrap control: &lt;code&gt;wrap&lt;/code&gt; (soft wrap) / &lt;code&gt;unwrap&lt;/code&gt; (horizontal scroll) / &lt;code&gt;unwrap:inactive&lt;/code&gt; (temporarily wraps while the mouse is held down); turn line numbers off with &lt;code&gt;ln:false&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;RMarkdown-style first line &lt;code&gt;{r plot, hl=3}&lt;/code&gt; (the title is taken from the first word):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;plot(1:10, type = &quot;l&quot;, col = &quot;steelblue&quot;, lwd = 2)
+title(main = &quot;rmarkdown style header&quot;)
+points(1:10, rnorm(10), pch = 19, col = &quot;tomato&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Inline code {lang} syntax&lt;/h2&gt;
+&lt;p&gt;Inside backticks, a &lt;code&gt;{python} code&lt;/code&gt; prefix reuses the blog&apos;s shiki inline highlighting; the &lt;code&gt;{}{…}&lt;/code&gt; empty-group escape lets you write literal braces:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;{python} for i in range(3): print(i)&lt;/code&gt; — inline highlight with a language tag.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;{python title:&apos;Inline If&apos;} &apos;yes&apos; if flag else &apos;no&apos;&lt;/code&gt; — parameters after the language are parsed, but v1 does not render the icon/title prefix yet.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;{}{python} this text shows literal {python} braces&lt;/code&gt; — the escape form.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;{cpp} int main() {}&lt;/code&gt; — languages that cannot be suffixed degrade to plain text (consistent with the plugin).&lt;/p&gt;
+&lt;h2&gt;Links in comments&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;alias&lt;/code&gt; and &lt;code&gt;[text](url)&lt;/code&gt; in code comments render as clickable links:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# Look here: quartz features and the external [astro](https://astro.build)
+def helper():
+    &quot;&quot;&quot;links in docstrings are not processed; only comment tokens are&quot;&quot;&quot;
+    return 42
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;// guide — without an alias, the file name is used (extension stripped)
+const x = 1; // [another site](https://example.com)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;reference code blocks&lt;/h2&gt;
+&lt;p&gt;Inside a &lt;code&gt;```reference&lt;/code&gt; block, YAML parameters point to the file (read from the repo at build time), supporting &lt;code&gt;@/&lt;/code&gt; for the repo root, relative paths, &lt;code&gt;wikilink&lt;/code&gt;, and &lt;code&gt;start&lt;/code&gt;/&lt;code&gt;end&lt;/code&gt; (a number / a word / a regex / &lt;code&gt;+N&lt;/code&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;file: @/package.json
+lang: json
+start: 2
+end: 10
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Relative path + regex slicing:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;file: ../../../scripts/extract-code-styler-icons.mjs
+language: js
+start: /function findObject/
+end: +3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;file: Features
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Erroneous cases (path escape and remote URLs) render as notice blocks:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;file: ../../../../../../etc/passwd
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;file: https://github.com/mayurankv/Obsidian-Code-Styler/blob/main/README.md
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Default decoration and skip protection&lt;/h2&gt;
+&lt;p&gt;Fences without any parameters still get the Code-Styler default look (line structure + default line numbers/wrapping, no header) — consistent with the Obsidian default theme. The following are still not decorated: mermaid diagrams and blocks with the &lt;code&gt;ignore&lt;/code&gt; parameter:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;flowchart LR
+    A[Start] --&amp;gt; B{Is it?}
+    B -- Yes --&amp;gt; C[OK]
+    B -- No --&amp;gt; D[Stop]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;print(&quot;this block stays completely native&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;print(&quot;plain fence — decorated with the default theme&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+</content:encoded></item><item><title>Image Converter Demo</title><link>http://localhost:4321/showcase/image-converter/</link><guid isPermaLink="true">http://localhost:4321/showcase/image-converter/</guid><description>A demo of the Obsidian Image Converter alignment/wrap/size tokens ported to this blog — wiki embeds and markdown links, text wrapping, centering, and syntax edge cases.</description><pubDate>Sun, 06 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;This article demonstrates the image alignment tokens of the Obsidian &lt;strong&gt;Image Converter&lt;/strong&gt; plugin, as ported to this blog. The syntax: after the image target, append tokens separated by &lt;code&gt;|&lt;/code&gt; — a trailing number (&lt;code&gt;400&lt;/code&gt; or &lt;code&gt;400x300&lt;/code&gt;) is a size that Obsidian itself understands natively, while &lt;strong&gt;&lt;code&gt;left&lt;/code&gt; / &lt;code&gt;center&lt;/code&gt; / &lt;code&gt;right&lt;/code&gt; / &lt;code&gt;wrap&lt;/code&gt; are parsed at build time by this port&lt;/strong&gt;: position and wrapping become CSS classes (&lt;code&gt;image-position-*&lt;/code&gt; / &lt;code&gt;image-wrap&lt;/code&gt;), sizes become &lt;code&gt;width&lt;/code&gt;/&lt;code&gt;height&lt;/code&gt; attributes, and the tokens never leak into the final alt text. Writing these from the plugin&apos;s &quot;Align image&quot; context menu in Obsidian produces exactly this syntax, so notes sync over unchanged.&lt;/p&gt;
+&lt;p&gt;All three writing forms work, both wiki embeds and markdown links:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;right|wrap|423x80
+![caption|left|wrap|280](images/demo-landscape.png)
+[images/demo-landscape.png|right|wrap|240](images/demo-landscape.png)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Wiki embed: left-aligned + wrapped (left|wrap)&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;left|wrap|320&lt;/code&gt; — only a width &lt;code&gt;320&lt;/code&gt; is given; Astro fills in the height from the image&apos;s intrinsic ratio:&lt;/p&gt;
+&lt;p&gt;left|wrap|320&lt;/p&gt;
+&lt;p&gt;This demo image is a script-generated placeholder: four corner tints over a 64px white grid, designed for eyeballing scale and wrap gutters — narrow the browser window and you can watch the image shrink with the container while text stays glued to its right and bottom edges. The wrap spacing matches the plugin (1em on the right, 0.5em below). The paragraphs below — every one of them — keep flowing around the image&apos;s right edge until the floated image &quot;ends&quot;. That is the core difference between &lt;code&gt;wrap&lt;/code&gt; and non-wrapped: without wrapping, text always resumes below the image and never sneaks in beside it. Text wrapping is the workhorse of image-heavy notes: one schematic next to a bullet list, floating on the paragraph&apos;s left (or right), with the follow-up sentences flowing naturally around it instead of splitting the page into two stacked chunks. Multiple images can be used together too — each stacks according to its own &lt;code&gt;clear&lt;/code&gt; direction.&lt;/p&gt;
+&lt;h2&gt;Wiki embed: right-aligned + wrapped + full size (right|wrap|WxH)&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;right|wrap|160x256&lt;/code&gt; — &lt;code&gt;160x256&lt;/code&gt; is written into &lt;strong&gt;both&lt;/strong&gt; width and height (same semantics as &lt;code&gt;|WxH&lt;/code&gt; in Obsidian: no ratio preservation, stretched as-is):&lt;/p&gt;
+&lt;p&gt;right|wrap|160x256&lt;/p&gt;
+&lt;p&gt;The portrait floats right and text wraps to its left. Note that token order does not matter (the plugin parses them in any order), but the Obsidian context menu always writes back the canonical order &lt;code&gt;position → wrap → size&lt;/code&gt;; this blog accepts both. The size token is only recognized as the single trailing section: it must be the last &lt;code&gt;|&lt;/code&gt;-separated section and purely numeric (optionally with an &lt;code&gt;x&lt;/code&gt;), so in &lt;code&gt;|right|wrap|423x80&lt;/code&gt; it parses as width 423, height 80. If a number sits in the middle (&lt;code&gt;|wrap|423x80|right&lt;/code&gt;) it is not a size but part of the caption text — same as the plugin.&lt;/p&gt;
+&lt;h2&gt;Centered (center)&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;center|220&lt;/code&gt; — block-level centering at a fixed width of 220:&lt;/p&gt;
+&lt;p&gt;center|220&lt;/p&gt;
+&lt;p&gt;When centering, the &lt;code&gt;wrap&lt;/code&gt; token has no effect (the plugin always renders &lt;code&gt;center&lt;/code&gt; as a block with auto margins; floating is meaningless), so the following renders identically to the image above:&lt;/p&gt;
+&lt;p&gt;center|wrap|220&lt;/p&gt;
+&lt;h2&gt;Left/right without wrapping (edge blocks)&lt;/h2&gt;
+&lt;p&gt;A position token without &lt;code&gt;wrap&lt;/code&gt; means &quot;flush to the side, but no text wrapping&quot;: the image renders as a block against its padding edge and text continues below it. &lt;code&gt;right&lt;/code&gt; without wrap flushes right:&lt;/p&gt;
+&lt;p&gt;right|280&lt;/p&gt;
+&lt;p&gt;Notice the blank space to the image&apos;s left above: it is a block flush against the right margin, not a float, so later text never fills that side — compare with the first example, where that paragraph wrapped around the image, while this one starts on a fresh line. Likewise, &lt;code&gt;left&lt;/code&gt; without wrap flushes left:&lt;/p&gt;
+&lt;p&gt;left|280&lt;/p&gt;
+&lt;h2&gt;Markdown link form: caption preserved as alt&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;![Alt caption|left|wrap|280](images/demo-landscape.png)&lt;/code&gt; — in a markdown link&apos;s bracket area, the &lt;strong&gt;first &lt;code&gt;|&lt;/code&gt; section is always the caption/alt slot&lt;/strong&gt; and is never treated as a token (even if it happens to read &lt;code&gt;right&lt;/code&gt;):&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;images/demo-landscape.png&quot; alt=&quot;Alt caption|left|wrap|280&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;A caption can itself contain further &lt;code&gt;|&lt;/code&gt; sections (e.g. &lt;code&gt;Part A|Part B&lt;/code&gt;), as long as they are not part of a consecutive token run at the tail; they are all preserved. At render time the tokens are stripped and the caption becomes the final alt text — hovering the image (or a failed load) shows &quot;Alt caption&quot; instead of a &lt;code&gt;|left|wrap&lt;/code&gt; noise string. This matches Obsidian&apos;s caption handling: the plugin places the caption after the path/alt and before the tokens, in the order &lt;code&gt;target/alt → caption → position → wrap → size&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;Markdown link form: size only&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;![Size caption|300](images/demo-landscape.png)&lt;/code&gt; — no position/wrap tokens, only a trailing size, so only the width is applied (same Astro image pipeline as the wiki form &lt;code&gt;300&lt;/code&gt;):&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;images/demo-landscape.png&quot; alt=&quot;Size caption|300&quot; /&gt;&lt;/p&gt;
+&lt;h2&gt;Bang-less links rendered as images&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;[images/demo-landscape.png|right|wrap|240](images/demo-landscape.png)&lt;/code&gt; — when the link target is a raster image (webp/png/jpg/jpeg/gif/bmp/jxl) and the link text carries tokens or a size, the whole link renders as an embedded image (config option &lt;code&gt;imageConverter.convertImageLinks&lt;/code&gt;, enabled by default):&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;images/demo-landscape.png&quot;&gt;images/demo-landscape.png|right|wrap|240&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;These &quot;no-bang image links&quot; are what the plugin and tools like ImageResizer generate inside Obsidian (their size parameter lands at the end of the link text); plain text links to non-images are unaffected and remain ordinary links. The paragraph you are reading is the one wrapped around the image above.&lt;/p&gt;
+&lt;h2&gt;Syntax edge cases&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;A lone &lt;code&gt;wrap&lt;/code&gt; (no position token) produces no alignment&lt;/strong&gt;, but the token is still stripped from the alt. &lt;code&gt;wrap|220&lt;/code&gt; renders as a plain image (no alignment class):&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;wrap|220&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Tokens must form a consecutive tail&lt;/strong&gt;: parsing stops at the first non-token word (&lt;code&gt;left/center/right/wrap&lt;/code&gt; or anything besides the trailing size) counting back from the end; anything before that belongs to the caption. &lt;code&gt;![right|some word|240](…)&lt;/code&gt; therefore produces no alignment — the middle word cuts the token tail off.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Repeated position words in one tail&lt;/strong&gt; is malformed (the plugin&apos;s context menu always writes exactly one position token); this port follows the plugin&apos;s parser character-for-character and adds no conventions of its own.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Whole-note opt-out&lt;/strong&gt;: setting &lt;code&gt;image-converter-ignore: true&lt;/code&gt; in frontmatter skips this port for that note entirely (syntax mirroring &lt;code&gt;code-styler-ignore&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Known limitation&lt;/strong&gt;: escaped &lt;code&gt;\|&lt;/code&gt; inside GFM table cells cannot be reliably reconstructed after remark parsing (not fully equivalent to the plugin&apos;s own table &lt;code&gt;\|&lt;/code&gt; handling); tokens apply only to the raster extensions above — &lt;code&gt;.svg&lt;/code&gt;, video and PDF embeds are excluded, matching the Obsidian plugin.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Notes&lt;/h2&gt;
+&lt;p&gt;The two placeholder demo images are deterministically generated by &lt;code&gt;node scripts/gen-image-converter-assets.mjs&lt;/code&gt; and committed under &lt;code&gt;src/content/showcase/images/&lt;/code&gt; (the demo content vault); delete those two files when replacing them with real images. This port is &lt;strong&gt;purely build-time&lt;/strong&gt;: edit the tokens in a note and rebuild — no client-side JavaScript runs on the page, and PhotoSwipe&apos;s click-to-zoom keeps working on aligned images as usual.&lt;/p&gt;
+</content:encoded></item><item><title>Getting Started with Lumen</title><link>http://localhost:4321/showcase/guide/</link><guid isPermaLink="true">http://localhost:4321/showcase/guide/</guid><description>Start here: what Lumen is, where files live, how notes, articles and the site config fit together, and the everyday commands.</description><pubDate>Tue, 01 Sep 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;&lt;strong&gt;Lumen&lt;/strong&gt; is a static blog-and-knowledge-base built with &lt;a href=&quot;https://astro.build/&quot;&gt;Astro&lt;/a&gt;: vault-style knowledge notes (dated ones double as blog articles), a link graph, full-text search — everything generated from plain markdown at build time. It descends from the &lt;a href=&quot;https://github.com/saicaca/fuwari&quot;&gt;fuwari&lt;/a&gt; template (MIT) with a rewritten config system and a quartz-based markdown pipeline, but you don&apos;t need any of that history to use it: everything you can configure lives in one markdown file, and every page on this site is content in &lt;code&gt;src/content/&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;This note is the switchboard — the deeper topics are one wikilink away: writing-content for syntax, knowledge-vaults for how folders become sites, site-configuration for the config file, publishing-workflow for builds and deploys.&lt;/p&gt;
+&lt;h2&gt;The content map&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;src/content/
+├── index.md        # site-wide config: title, theme, nav, profile… (YAML)
+├── about/          # a vault whose root note is /about/ (pages are vaults too)
+└── showcase/       # this vault: a tour of the project, in English
+    └── &amp;lt;any vault you add&amp;gt;   # one top-level folder = one knowledge base
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;There is &lt;strong&gt;one content model&lt;/strong&gt;: vault notes, with an open schema that keeps any Obsidian frontmatter. A note carrying a &lt;code&gt;published&lt;/code&gt; date is an &lt;strong&gt;article&lt;/strong&gt; — it gains the article header, license card, structured data and prev/next links, and appears in the homepage overview, the archive, RSS and the knowledge-graph. Undated notes stay quietly in their vault.&lt;/p&gt;
+&lt;h2&gt;Frontmatter you will actually use&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;---
+title: My First Article
+published: 2026-09-07        # yyyy-mm-dd — dated notes become articles
+description: One line for cards and meta tags.
+image: images/cover.png      # cover: http(s):// URL, /public-path, or note-relative
+tags: [Foo, Bar]
+category: Front-end           # optional grouping (article-style header shows it)
+draft: false                 # true = dev preview only, absent from builds
+aliases: [alternate-name]    # optional: extra wikilink targets
+---
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Three rules of thumb: &lt;code&gt;published&lt;/code&gt; decides visibility in the homepage overview and &lt;code&gt;/archive/&lt;/code&gt;; &lt;code&gt;draft: true&lt;/code&gt; keeps a page out of production builds entirely (no page, no archive, no search hit); &lt;code&gt;image&lt;/code&gt; covers render on any note page (this note&apos;s cover is one of the local demo images).&lt;/p&gt;
+&lt;h2&gt;Everyday commands&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Command&lt;/th&gt;
+&lt;th&gt;What it does&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm dev&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;dev server with hot reload — including config-file edits&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm build&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;static build + Pagefind search index into &lt;code&gt;dist/&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm check&lt;/code&gt; / &lt;code&gt;pnpm type-check&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;astro check / TypeScript validation&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm new-note &amp;lt;vault&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;scaffold a note inside a vault&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;mkdir src/content/&amp;lt;name&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;create a vault — a folder is a vault, auto-registered&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pnpm index-vaults&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;refresh every vault hub&apos;s auto-index (runs on &lt;code&gt;predev&lt;/code&gt;/&lt;code&gt;prebuild&lt;/code&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Two lifecycle facts worth remembering: a &lt;strong&gt;newly created vault folder&lt;/strong&gt; requires a dev-server restart before its collection and routes register; everything else (new notes, edits, the config file) appears on save.&lt;/p&gt;
+&lt;h2&gt;First-day checklist&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Set &lt;code&gt;site.title&lt;/code&gt;, &lt;code&gt;site.lang&lt;/code&gt; and the &lt;code&gt;profile&lt;/code&gt; block in &lt;code&gt;src/content/index.md&lt;/code&gt; — each option is commented in place and applies on save (site-configuration).&lt;/li&gt;
+&lt;li&gt;Put your real avatar at &lt;code&gt;src/assets/images/&lt;/code&gt; (or use a URL) and point &lt;code&gt;profile.avatar&lt;/code&gt; at it.&lt;/li&gt;
+&lt;li&gt;Set the deployment domain in &lt;code&gt;astro.config.mjs&lt;/code&gt; (&lt;code&gt;site&lt;/code&gt;), and &lt;code&gt;base&lt;/code&gt; if hosting under a sub-path.&lt;/li&gt;
+&lt;li&gt;Write your first article: add a note (say with &lt;code&gt;pnpm new-note showcase&lt;/code&gt;) and give it a &lt;code&gt;published&lt;/code&gt; date — or simply open this vault in Obsidian and start typing.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Everything else is tuning: the knowledge-graph depth, banner and license in the config file, fonts and hue in the stylesheets. The demo content sitting around this vault — writing-content included — doubles as living documentation: steal the syntax, delete what you don&apos;t need.&lt;/p&gt;
+</content:encoded></item><item><title>Quartz Pipeline Features</title><link>http://localhost:4321/showcase/quartz-features/</link><guid isPermaLink="true">http://localhost:4321/showcase/quartz-features/</guid><description>Kitchen-sink verification of the quartz markdown pipeline — every feature on one page, each linked to its documentation note.</description><pubDate>Fri, 28 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;blockquote&gt;
+&lt;p&gt;[!INFO] A regression fixture — and a one-page index
+Every page is rendered by the quartz markdown pipeline; this note exercises its features back-to-back so a change in the pipeline shows up as a broken demo. The section anchors are load-bearing — quartz-target transcludes back into &lt;code&gt;#Nested-Anchor&lt;/code&gt; below to verify recursion, so keep the headings and block markers stable. Each feature links to its full documentation note.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;Wikilinks&lt;/h2&gt;
+&lt;p&gt;Resolved across the whole site by file name — quartz-target plain, Target Note with an alias, and a deliberately broken link nonexistent-note (flagged at build time). Syntax details: writing-content.&lt;/p&gt;
+&lt;h2&gt;Transclusion&lt;/h2&gt;
+&lt;p&gt;Embed whole notes or slices of them — the four forms below mirror the quartz-target fixture:&lt;/p&gt;
+&lt;p&gt;Full page: quartz-target&lt;/p&gt;
+&lt;p&gt;Heading: quartz-target&lt;/p&gt;
+&lt;p&gt;Block (paragraph): quartz-target&lt;/p&gt;
+&lt;p&gt;Block (list item): quartz-target&lt;/p&gt;
+&lt;p&gt;Block (quote): quartz-target&lt;/p&gt;
+&lt;h2&gt;Callouts&lt;/h2&gt;
+&lt;p&gt;The Obsidian &lt;code&gt;&amp;gt; [!type]&lt;/code&gt; family — plain, fold-open (&lt;code&gt;+&lt;/code&gt;), fold-closed (&lt;code&gt;-&lt;/code&gt;), and custom titles:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[!NOTE]
+A simple note callout.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[!WARNING]+ Folded by default
+This callout has a fold marker (&lt;code&gt;+&lt;/code&gt;) and can be collapsed.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[!TIP]- Collapsed by default
+This one starts collapsed (&lt;code&gt;-&lt;/code&gt;).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[!EXAMPLE] With metadata
+Example callout with metadata.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The &lt;code&gt;:::type&lt;/code&gt; spelling is interchangeable — see markdown-extended for the directive form.&lt;/p&gt;
+&lt;h2&gt;Highlights and inline tags&lt;/h2&gt;
+&lt;p&gt;==Highlighted text==, and an inline #quartz-tag that counts as a tag.&lt;/p&gt;
+&lt;h2&gt;Mermaid&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;graph TD
+    A[Start] --&amp;gt; B{Decision}
+    B --&amp;gt;|Yes| C[Do it]
+    B --&amp;gt;|No| D[Skip]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Double-click a rendered diagram to open it fullscreen.&lt;/p&gt;
+&lt;h2&gt;Task lists&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] open task&lt;/li&gt;
+&lt;li&gt;[x] done task&lt;/li&gt;
+&lt;li&gt;[/] custom char task&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Checkboxes stay clickable and persist their state per browser.&lt;/p&gt;
+&lt;h2&gt;Math&lt;/h2&gt;
+&lt;p&gt;Inline math $e^{i\pi} + 1 = 0$ and display math, KaTeX-rendered:&lt;/p&gt;
+&lt;p&gt;$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$&lt;/p&gt;
+&lt;p&gt;See markdown for more math examples.&lt;/p&gt;
+&lt;h2&gt;GFM&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Feature&lt;/th&gt;
+&lt;th&gt;Status&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Tables&lt;/td&gt;
+&lt;td&gt;Working&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;s&gt;Strikethrough&lt;/s&gt;&lt;/td&gt;
+&lt;td&gt;Working&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The GFM base — tables, strikethrough, autolinks, task lists — is covered in markdown.&lt;/p&gt;
+&lt;h2&gt;Directives&lt;/h2&gt;
+&lt;p&gt;The directive layer (&lt;code&gt;:::&lt;/code&gt;) feeds admonitions, GitHub cards and more:&lt;/p&gt;
+&lt;p&gt;:::note
+A custom directive admonition works like any other callout.
+:::&lt;/p&gt;
+&lt;p&gt;See markdown-extended for the full gadget list.&lt;/p&gt;
+&lt;h2&gt;Code blocks&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;const answer: number = 42;
+console.log(&quot;dual theme&quot;, answer);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Blocks speak the code-styler dialect — titles, folds, line numbers and ranges included.&lt;/p&gt;
+&lt;h2&gt;Nested Anchor&lt;/h2&gt;
+&lt;p&gt;This section is the nested-transclusion anchor (transcluded by quartz-target, back into this page).&lt;/p&gt;
+</content:encoded></item><item><title>Quartz Target</title><link>http://localhost:4321/showcase/quartz-target/</link><guid isPermaLink="true">http://localhost:4321/showcase/quartz-target/</guid><description>Transclusion fixture for the quartz pipeline demos — headings and block anchors that other notes embed.</description><pubDate>Thu, 27 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;blockquote&gt;
+&lt;p&gt;[!INFO] This note is a fixture, not an article
+quartz-features and code-styler embed parts of this page to demonstrate the quartz pipeline&apos;s transclusion and reference features — clicking those links is what the note is for. Its section headings and block anchors are load-bearing: other notes address them by name (&lt;code&gt;#Section-Two&lt;/code&gt;, &lt;code&gt;^par-block&lt;/code&gt; …), so keep them stable.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;Section Two&lt;/h2&gt;
+&lt;p&gt;Content of section two, referenced via &lt;code&gt;quartz-target&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;Section Three&lt;/h2&gt;
+&lt;p&gt;A paragraph with a block reference marker.&lt;/p&gt;
+&lt;p&gt;Quoted paragraph to embed. ^par-block&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;list item one ^list-block&lt;/li&gt;
+&lt;li&gt;list item two&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote&gt;
+&lt;p&gt;A quote to embed. ^quote-block&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;Nested&lt;/h2&gt;
+&lt;p&gt;This section transcludes back into the main fixture to test recursion:&lt;/p&gt;
+&lt;p&gt;quartz-features&lt;/p&gt;
+</content:encoded></item><item><title>Embedding Video</title><link>http://localhost:4321/showcase/video/</link><guid isPermaLink="true">http://localhost:4321/showcase/video/</guid><description>How to embed YouTube and Bilibili videos in notes — paste the platform iframe, or reference an existing one with an Obsidian-style embed.</description><pubDate>Mon, 24 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Video embeds are plain HTML: copy the share/embed code from the platform and paste it straight into the markdown — it works identically in any vault note because the pipeline keeps raw HTML.&lt;/p&gt;
+&lt;h2&gt;YouTube&lt;/h2&gt;
+&lt;p&gt;The share dialog&apos;s embed code pastes directly:&lt;/p&gt;
+&lt;p&gt;&amp;lt;iframe width=&quot;560&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/8jypK2U1AM0?si=bW--3ofUe_HI30U9&quot; title=&quot;YouTube video player&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share&quot; referrerpolicy=&quot;strict-origin-when-cross-origin&quot; allowfullscreen&amp;gt;&amp;lt;/iframe&amp;gt;&lt;/p&gt;
+&lt;p&gt;In the source it looks like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;&amp;lt;iframe width=&quot;560&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/8jypK2U1AM0?si=bW--3ofUe_HI30U9&quot; title=&quot;YouTube video player&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share&quot; referrerpolicy=&quot;strict-origin-when-cross-origin&quot; allowfullscreen&amp;gt;&amp;lt;/iframe&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Bilibili&lt;/h2&gt;
+&lt;p&gt;The same trick works for Bilibili&apos;s player page:&lt;/p&gt;
+&lt;p&gt;&amp;lt;iframe width=&quot;100%&quot; height=&quot;468&quot; src=&quot;//player.bilibili.com/player.html?isOutside=true&amp;amp;aid=115265949932260&amp;amp;bvid=BV1p1n8zdEAk&amp;amp;cid=32626182742&amp;amp;p=1&quot; scrolling=&quot;no&quot; border=&quot;0&quot; frameborder=&quot;no&quot; framespacing=&quot;0&quot; allowfullscreen=&quot;true&quot;&amp;gt;&amp;lt;/iframe&amp;gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;&amp;lt;iframe width=&quot;100%&quot; height=&quot;468&quot; src=&quot;//player.bilibili.com/player.html?isOutside=true&amp;amp;aid=115265949932260&amp;amp;bvid=BV1p1n8zdEAk&amp;amp;cid=32626182742&amp;amp;p=1&quot; scrolling=&quot;no&quot; border=&quot;0&quot; frameborder=&quot;no&quot; framespacing=&quot;0&quot; allowfullscreen=&quot;true&quot;&amp;gt;&amp;lt;/iframe&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Two practical notes: the &lt;code&gt;width=&quot;100%&quot;&lt;/code&gt; keeps players responsive on every screen, and the embed sits in a normal markdown flow — it scrolls with the page and plays inline without any client JavaScript of its own. For pulling &lt;em&gt;other notes and images&lt;/em&gt; into a page — the embed side of the pipeline — see writing-content.&lt;/p&gt;
+</content:encoded></item><item><title>Expressive Code in Lumen</title><link>http://localhost:4321/showcase/expressive-code/</link><guid isPermaLink="true">http://localhost:4321/showcase/expressive-code/</guid><description>Which Expressive Code ideas apply in Lumen&apos;s code blocks, and how to get the equivalent effect — titles, markers, collapse and line numbers map onto the code-styler dialect.</description><pubDate>Sat, 22 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;&lt;a href=&quot;https://expressive-code.com/&quot;&gt;Expressive Code&lt;/a&gt; is the code-block engine of stock Astro themes. Lumen&apos;s markdown pipeline is a quartz-based one instead — code blocks are styled by the ported &lt;strong&gt;code-styler&lt;/strong&gt; engine, so &lt;em&gt;some&lt;/em&gt; Expressive Code conventions work as-is while others have a direct equivalent. Rather than guessing from upstream docs, this note only claims what the live renderer actually does — try any block by copying it.&lt;/p&gt;
+&lt;h2&gt;What works as written&lt;/h2&gt;
+&lt;p&gt;The &lt;code&gt;title&lt;/code&gt; attribute is honored: it becomes the block&apos;s header text (this is the one attribute both engines agree on).&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;```js title=&quot;hello.js&quot;
+console.log(&quot;Titles work — they become the header text.&quot;);
+```
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Renders as:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;console.log(&quot;Titles work — they become the header text.&quot;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Language highlighting and diff syntax need no extra markup — they are handled by the Shiki-based highlighter underneath:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def greet(name: str) -&amp;gt; str:
+    return f&quot;Hello, {name}!&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;What maps onto code-styler syntax&lt;/h2&gt;
+&lt;p&gt;Expressive Code features that do &lt;strong&gt;not&lt;/strong&gt; parse here have equivalents in the code-styler dialect (same repo note as the real demo):&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Expressive Code you know&lt;/th&gt;
+&lt;th&gt;In Lumen, write&lt;/th&gt;
+&lt;th&gt;Result&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;title=&quot;…&quot;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;title:…&lt;/code&gt; or &lt;code&gt;title=…&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;header text (both spellings work)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;{1, 4, 7-8}&lt;/code&gt; line markers&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;hl:1,4,7-8&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;highlighted lines/ranges&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;del={…}&lt;/code&gt; / &lt;code&gt;ins={…}&lt;/code&gt; markers&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td&gt;not ported; the code-styler dialect defines its own marker set (see code-styler)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;collapse={…}&lt;/code&gt; plugin&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;fold&lt;/code&gt; / &lt;code&gt;fold:&quot;Label&quot;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;collapsible header&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;showLineNumbers&lt;/code&gt; / &lt;code&gt;startLineNumber&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;ln&lt;/code&gt; (optionally &lt;code&gt;ln:5&lt;/code&gt;)&lt;/td&gt;
+&lt;td&gt;line numbers, with start offset&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;wrap&lt;/code&gt; / &lt;code&gt;preserveIndent&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;wrap&lt;/code&gt; (default on)&lt;/td&gt;
+&lt;td&gt;soft-wrapped lines&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The one concrete rule for the curious: in Lumen&apos;s code-styler port the header parameter grammar is &lt;code&gt;key:value&lt;/code&gt; or &lt;code&gt;key=value&lt;/code&gt; on the opening fence line right after the language — e.g. &lt;code&gt;```js fold:&quot;solution&quot; hl:2-4 ln&lt;/code&gt; — while curly-brace Expressive Code markers (&lt;code&gt;{1,4}&lt;/code&gt;, &lt;code&gt;del=&lt;/code&gt;, &lt;code&gt;ins=&lt;/code&gt;) are left untouched as plain text, exactly like the plugin they replace.&lt;/p&gt;
+&lt;h2&gt;The takeaway&lt;/h2&gt;
+&lt;p&gt;Code styling lives in one place: open code-styler for the full, live demo of the dialect this blog speaks — headers, folds, line numbers, highlight ranges, reference headers, per-line language tags, and the &lt;code&gt;reference&lt;/code&gt;-file embedding trick. markdown covers the rest of GFM, and writing-content ties the syntax together.&lt;/p&gt;
+</content:encoded></item><item><title>Markdown Extended Features</title><link>http://localhost:4321/showcase/markdown-extended/</link><guid isPermaLink="true">http://localhost:4321/showcase/markdown-extended/</guid><description>Extra markdown gadgets on top of GFM and Obsidian-flavored markdown — GitHub repository cards, directive-style admonitions and spoilers.</description><pubDate>Thu, 20 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Three additions that go beyond plain GFM (markdown covers the base, writing-content covers the Obsidian-flavored layer). Everything on this page renders at build time except the GitHub card, which is fetched in the browser.&lt;/p&gt;
+&lt;h2&gt;GitHub repository cards&lt;/h2&gt;
+&lt;p&gt;A dynamic card that links to a GitHub repository. The metadata (stars, forks, license, description) is pulled from the GitHub API &lt;strong&gt;when the page loads in the browser&lt;/strong&gt;, then injected into the card below — so it appears with a short delay and needs a live connection, not a build-time one:&lt;/p&gt;
+&lt;p&gt;::github{repo=&quot;quartz-scheduler/quartz&quot;}&lt;/p&gt;
+&lt;p&gt;The card above is this project&apos;s upstream template (MIT) — fitting, since the syntax is a single directive:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;::github{repo=&quot;quartz-scheduler/quartz&quot;}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Any &lt;code&gt;&amp;lt;owner&amp;gt;/&amp;lt;repo&amp;gt;&lt;/code&gt; works; cards render wherever the directive lands in a post or note.&lt;/p&gt;
+&lt;h2&gt;Admonitions (directive style)&lt;/h2&gt;
+&lt;p&gt;The &lt;code&gt;:::type … :::&lt;/code&gt; block form is supported alongside the Obsidian &lt;code&gt;&amp;gt; [!type]&lt;/code&gt; callouts. These five types are guaranteed:&lt;/p&gt;
+&lt;p&gt;:::note
+Highlights information that users should take into account, even when skimming.
+:::&lt;/p&gt;
+&lt;p&gt;:::tip
+Optional information to help a user be more successful.
+:::&lt;/p&gt;
+&lt;p&gt;:::important
+Crucial information necessary for users to succeed.
+:::&lt;/p&gt;
+&lt;p&gt;:::warning
+Critical content demanding immediate user attention due to potential risks.
+:::&lt;/p&gt;
+&lt;p&gt;:::caution
+Negative potential consequences of an action.
+:::&lt;/p&gt;
+&lt;p&gt;Titles can be customized per block:&lt;/p&gt;
+&lt;p&gt;:::note[MY CUSTOM TITLE]
+This is a note with a custom title.
+:::&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;:::note[MY CUSTOM TITLE]
+This is a note with a custom title.
+:::
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Obsidian-style callouts — the &lt;code&gt;&amp;gt; [!note]&lt;/code&gt; family with fold markers — are the same feature with a different spelling; see writing-content for those, and note that both spellings render identically. (GitHub&apos;s own &lt;code&gt;&amp;gt; [!TIP]&lt;/code&gt; syntax is accepted there too.)&lt;/p&gt;
+&lt;h2&gt;Spoilers&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;:spoiler[...]&lt;/code&gt; hides text behind an expandable element, and the content supports full markdown:&lt;/p&gt;
+&lt;p&gt;The content :spoiler[is hidden &lt;strong&gt;ayyy&lt;/strong&gt;]!&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;The content :spoiler[is hidden **ayyy**]!
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Use it for puzzle answers, plot twists or punchlines that readers may want to peek at deliberately.&lt;/p&gt;
+</content:encoded></item><item><title>Markdown Basics</title><link>http://localhost:4321/showcase/markdown/</link><guid isPermaLink="true">http://localhost:4321/showcase/markdown/</guid><description>What plain GFM markdown looks like in Lumen — headings, emphasis, lists, links, tables, code and math, all rendered the same way in every vault note.</description><pubDate>Tue, 18 Aug 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;A compact tour of the everyday markdown that renders identically in every vault note. For the extras — wikilinks, callouts, highlights, embeds — see writing-content.&lt;/p&gt;
+&lt;h2&gt;Headings, paragraphs and rules&lt;/h2&gt;
+&lt;h1&gt;h1&lt;/h1&gt;
+&lt;h2&gt;h2&lt;/h2&gt;
+&lt;h3&gt;h3&lt;/h3&gt;
+&lt;p&gt;Paragraphs are separated by a blank line. &lt;strong&gt;Bold&lt;/strong&gt;, &lt;em&gt;italic&lt;/em&gt;, &lt;em&gt;&lt;strong&gt;both&lt;/strong&gt;&lt;/em&gt;, &lt;code&gt;inline code&lt;/code&gt; and &lt;s&gt;strikethrough&lt;/s&gt; are plain markdown. Two or three dashes become an em-dash — and a double dash (12--14) or three dots … get typographic treatment as well (smartypants).&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h2&gt;Lists&lt;/h2&gt;
+&lt;p&gt;Unordered, ordered, nested — and task lists, which render as interactive checkboxes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;first
+&lt;ul&gt;
+&lt;li&gt;nested item&lt;/li&gt;
+&lt;li&gt;second nested item&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;last&lt;/li&gt;
+&lt;/ul&gt;
+&lt;ol&gt;
+&lt;li&gt;First step&lt;/li&gt;
+&lt;li&gt;Second step
+&lt;ol&gt;
+&lt;li&gt;sub-step&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Done&lt;/li&gt;
+&lt;/ol&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] a task that is open&lt;/li&gt;
+&lt;li&gt;[x] a task that is done&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Block quotes are written with a leading &lt;code&gt;&amp;gt;&lt;/code&gt; and can span
+multiple paragraphs if you like.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;Links&lt;/h2&gt;
+&lt;p&gt;Inline links, &lt;a href=&quot;https://docs.astro.build&quot;&gt;reference-style links&lt;/a&gt;, bare autolinks &lt;a href=&quot;https://astro.build&quot;&gt;https://astro.build&lt;/a&gt;, and local links that work across the site: &lt;a href=&quot;/archive/&quot;&gt;the archive&lt;/a&gt;.&lt;/p&gt;
+&lt;h2&gt;Code&lt;/h2&gt;
+&lt;p&gt;Fenced blocks carry a language for highlighting — including diff and many others:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;for (const day of [&quot;Mon&quot;, &quot;Tue&quot;]) {
+  console.log(`It is ${day}day`);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;- console.log(&quot;old behavior&quot;);
++ console.log(&quot;new behavior&quot;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Indented code blocks and inline code (&lt;code&gt;const x = 1&lt;/code&gt;) work as usual. Blocks can get titles, line numbers, folds and highlight ranges — that syntax is the code-styler dialect, covered in its own note.&lt;/p&gt;
+&lt;h2&gt;Tables&lt;/h2&gt;
+&lt;p&gt;GFM tables align columns with the header separator:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Feature&lt;/th&gt;
+&lt;th&gt;In Lumen&lt;/th&gt;
+&lt;th&gt;Notes&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Markdown&lt;/td&gt;
+&lt;td&gt;✓&lt;/td&gt;
+&lt;td&gt;GFM-flavored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Math (KaTeX)&lt;/td&gt;
+&lt;td&gt;✓&lt;/td&gt;
+&lt;td&gt;inline and display&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Footnotes&lt;/td&gt;
+&lt;td&gt;✗&lt;/td&gt;
+&lt;td&gt;not in GFM&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2&gt;Math&lt;/h2&gt;
+&lt;p&gt;Inline math like $\omega = d\phi/dt$ and display math on its own line:&lt;/p&gt;
+&lt;p&gt;$$
+\int_0^\infty e^{-x^2},dx = \frac{\sqrt{\pi}}{2}
+$$&lt;/p&gt;
+&lt;p&gt;Aligned environments work too:&lt;/p&gt;
+&lt;p&gt;$$
+\begin{aligned}
+x &amp;amp;= 1 + 1 \
+&amp;amp;= 2
+\end{aligned}
+$$&lt;/p&gt;
+&lt;h2&gt;Escaping&lt;/h2&gt;
+&lt;p&gt;Backslash-escape any character you want shown literally: *not emphasis*, `not code`, and a literal &lt;code&gt;# not a heading&lt;/code&gt; inside inline code.&lt;/p&gt;
+</content:encoded></item></channel></rss>

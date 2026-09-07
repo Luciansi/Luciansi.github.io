@@ -1,0 +1,1 @@
+function e(e,t){return e.replace(/^\/|\/$/g,``).toLowerCase()===t.replace(/^\/|\/$/g,``).toLowerCase()}function t(...e){return e.join(`/`).replace(/\/+/g,`/`)}function n(e){return t(``,`/`,e)}export{n,e as t};
